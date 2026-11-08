@@ -279,8 +279,10 @@ function run_cmc_hmc_method(ctx::NamedTuple, cmc_init::NamedTuple)
     # Evaluate convergence and place metrics on the gradient-count axis.
     metrics, metrics_by_reduction, metrics_time = method_metrics(out.chains, ctx, report_name)
     grad_eval_grid = gradient_grid(metrics, production_gradient_xaxis(out.chains), ctx.gradient_axis_mode)
+    # Return metrics and summaries only; the full chain history is no longer needed.
     return (
-        out = out,
+        n_chains = length(out.chains),
+        cmc_initialisation_target_grad_evals = cmc_init.target_grad_evals.total,
         metrics = metrics,
         metrics_by_reduction = metrics_by_reduction,
         grad_eval_grid = grad_eval_grid,
@@ -370,8 +372,10 @@ function run_cmc_chmc_hmc_method(ctx::NamedTuple, cmc_init::NamedTuple)
     gradient_counts = gradient_trace(chmc_out.gradient_eval_xaxes, ctx.gradient_axis_mode)
     grad_eval_grid = gradient_counts[metrics.time_grid .+ 1]
     transition_marker_x = chmc_out.n_hmc > 0 ? gradient_counts[chmc_out.transition_step + 1] : nothing
+    # Return metrics and summaries only; the full chain history is no longer needed.
     return (
-        out = out,
+        n_chains = length(out.chains),
+        cmc_initialisation_target_grad_evals = cmc_init.target_grad_evals.total,
         metrics = metrics,
         metrics_by_reduction = metrics_by_reduction,
         grad_eval_grid = grad_eval_grid,
@@ -587,6 +591,7 @@ function run_cmc_experiment(
             cmc_init = build_cmc_initialisation(method_ctx)
         end
         cmc_hmc_res = run_cmc_hmc_method(method_ctx, cmc_init)
+        GC.gc() # Reclaim chain histories before starting the next method.
         cmc_hmc_total = sum_times(cmc_hmc_res.timing.initialisation, cmc_hmc_res.timing.production)
         cmc_hmc_res = merge(cmc_hmc_res, (total_time=cmc_hmc_total,))
         results[:cmc_hmc] = cmc_hmc_res
@@ -600,6 +605,7 @@ function run_cmc_experiment(
             cmc_init = build_cmc_initialisation(method_ctx)
         end
         cmc_chmc_hmc_res = run_cmc_chmc_hmc_method(method_ctx, cmc_init)
+        GC.gc()
         cmc_chmc_hmc_total = sum_times(cmc_chmc_hmc_res.timing.initialisation, cmc_chmc_hmc_res.timing.production)
         cmc_chmc_hmc_res = merge(cmc_chmc_hmc_res, (total_time=cmc_chmc_hmc_total,))
         results[:cmc_chmc_hmc] = cmc_chmc_hmc_res

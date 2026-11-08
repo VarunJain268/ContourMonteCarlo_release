@@ -480,11 +480,15 @@ function plot_energy_metrics(results, legend_plot; line_stride::Int, line_stride
 end
 
 
-# Give each final figure its own native window instead of replacing the previous one.
+# Use the VS Code plot pane, or separate native windows in a terminal.
 const CMC_PLOT_WINDOW_ID = Ref(100)
 
 function display_plot_window(figure)
     backend = Plots.GR
+    if backend.isvscode()
+        display(figure)
+        return nothing
+    end
     backend.inqdspsize() # Initialise GR's default workstation before opening another.
     window_id = (CMC_PLOT_WINDOW_ID[] += 1)
     backend.openws(window_id, "", 411) # GR's Qt window viewer.

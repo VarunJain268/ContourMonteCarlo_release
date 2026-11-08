@@ -8,12 +8,12 @@ end
 
 # Settings: EDIT THIS BLOCK
 # Target-specific step sizes and umbrella settings come from target_settings.jl.
-target_id = :rosenbrock_36d                      # Use an ID from available_target_settings().
+target_id = :funnel_100d                      # Use an ID from available_target_settings().
 cfg = target_setting(target_id)
 seeds = collect(1:5)                # Use [1] for one run, or several seeds to combine results.
 methods = [:cmc_hmc, :cmc_chmc_hmc]          # Keep either method or both.
 chain_workers = Threads.nthreads(:default)  # Concurrent production chains within each seed.
-seed_workers = min(length(seeds), chain_workers) # Concurrent seed preparations (pilots, umbrellas, MBAR).
+seed_workers = 2 #min(length(seeds), chain_workers) # Concurrent seed preparations (pilots, umbrellas, MBAR).
 # seed_workers = 1 lowers peak memory; all seeds run, with production chains still parallel.
 blas_threads = 1                            # Keep matrix operations serial when chains run in parallel.
 verbose = false                            # Print detailed progress and diagnostics; false keeps main messages and overall timings.
@@ -87,12 +87,15 @@ prepared_cmc_by_seed = prepare_cmc_initialisations(seeds, cfg;
     verbose=verbose,
 )
 
-# Keep the energy-fit data for plotting after all seeds finish.
+# Show the energy fits before running the production chains.
 mbar_fit_data = if !isempty(prepared_cmc_by_seed) && cmc_settings.display_mbar_plots
     [prepared_cmc_by_seed[seed].init.mbar_plot_data for seed in seeds]
 else
     nothing
 end
+
+mbar_fit_row = mbar_fit_data === nothing ? nothing : plot_mbar_fit_row(mbar_fit_data, seeds; display_plot=false)
+mbar_fit_row === nothing || display_plot_window(mbar_fit_row)
 
 # Run the selected methods for every seed before combining the results.
 for seed in seeds
@@ -123,20 +126,13 @@ for seed in seeds
         verbose=verbose,
     )
 
-    # Keep the metrics across seeds; release the full chain samples after each run.
-    push!(seed_results, Dict(method => merge(
-        Base.structdiff(result, (out=nothing,)),
-        (n_chains=length(result.out.chains),
-         cmc_initialisation_target_grad_evals=result.out.cmc_init.target_grad_evals.total),
-    ) for (method, result) in results))
+    # The runner has already released each method's chain history; keep its metrics.
+    push!(seed_results, results)
     println("\n$(length(seed_results))/$(length(seeds)) seeds completed")
-    empty!(results)
-    GC.gc()
 end
 
-# Combine all seeds and display each figure once.
+# Combine all seeds and plot their convergence metrics.
 results_avg = aggregate_over_seeds(seed_results)
-mbar_fit_row = mbar_fit_data === nothing ? nothing : plot_mbar_fit_row(mbar_fit_data, seeds; display_plot=false)
 plots = plot_results_summary(results_avg;
     display_plots=false,
     line_stride=line_stride_hmc,
@@ -145,8 +141,7 @@ plots = plot_results_summary(results_avg;
     max_grad_evals=max_grad_evals,
 )
 
-# Keep all final figures open in separate windows.
-mbar_fit_row === nothing || display_plot_window(mbar_fit_row)
+# Open the convergence figures in separate windows.
 display_plot_window(plots.projections)
 display_plot_window(plots.pe)
 

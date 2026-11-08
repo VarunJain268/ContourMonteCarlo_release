@@ -56,9 +56,9 @@ const TARGET_SETTINGS = Dict{Symbol,NamedTuple}(
         K = 37,
         replica_exchange = true,  
         exchange_interval = 4,  
-        nsteps = 100_000,
+        nsteps = 75_000,
         burn = 10_000,
-        L_umbrella = 20,
+        L_umbrella = 30,
     ),
     :lsat_centered => (
         label = "LSAT item response model, centred abilities (1006D)",
