@@ -8,9 +8,9 @@ end
 
 # Settings: EDIT THIS BLOCK
 # Target-specific step sizes and umbrella settings come from target_settings.jl.
-target_id = :funnel_100d                      # Use an ID from available_target_settings().
+target_id = :rosenbrock_36d                      # Use an ID from available_target_settings().
 cfg = target_setting(target_id)
-seeds = collect(1:5)                # Use [1] for one run, or several seeds to combine results.
+seeds = collect(1:10)                # Use [1] for one run, or several seeds to combine results.
 methods = [:cmc_hmc, :cmc_chmc_hmc]          # Keep either method or both.
 chain_workers = Threads.nthreads(:default)  # Concurrent production chains within each seed.
 seed_workers = 2 #min(length(seeds), chain_workers) # Concurrent seed preparations (pilots, umbrellas, MBAR).
